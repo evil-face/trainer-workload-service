@@ -1,0 +1,44 @@
+FROM amazoncorretto:17-alpine3.16 as jre-bulder
+
+RUN apk add --no-cache binutils
+
+RUN $JAVA_HOME/bin/jlink \
+    --verbose \
+    --add-modules ALL-MODULE-PATH \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /full-jre
+
+RUN rm -rf /full-jre/legal &&\
+    find /full-jre/bin -type f \
+         ! -name java \
+         ! -name jcmd \
+         -delete
+
+FROM maven:3.9.5-eclipse-temurin-17-alpine as app-builder
+
+WORKDIR /build/
+COPY pom.xml /build/
+COPY src /build/src/
+COPY checkstyle.xml /build/
+
+RUN mvn clean package -DskipTests
+
+FROM alpine:3.16
+
+RUN apk add --no-cache bash &&\
+    echo alias ll=\'ls -la\' > /root/.bashrc
+
+ENV JAVA_HOME=/jre
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+ARG JAR_NAME=trainer-workload-service-1.0-SNAPSHOT
+
+COPY --from=jre-bulder /full-jre $JAVA_HOME
+COPY --from=app-builder /build/target/${JAR_NAME}.jar /app/workload-application.jar
+
+EXPOSE 8081
+
+WORKDIR /app
+CMD ["java", "-jar", "workload-application.jar"]
