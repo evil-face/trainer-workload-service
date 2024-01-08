@@ -5,7 +5,8 @@ import epam.xstack.dto.workload.TrainerWorkloadRequestDTO;
 import epam.xstack.validator.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jms.annotation.JmsListener;
+import org.springframework.cloud.aws.messaging.listener.SqsMessageDeletionPolicy;
+import org.springframework.cloud.aws.messaging.listener.annotation.SqsListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ import java.util.Set;
 public class WorkloadReceiver {
     private final TrainerWorkloadService trainerWorkloadService;
     private final Validator<TrainerWorkloadRequestDTO> validator;
-    private static final String WORKLOAD_QUEUE = "trainer.workload.queue";
+    private static final String WORKLOAD_QUEUE = "Spring-Gym-Workload-Queue";
     private static final Logger LOGGER = LoggerFactory.getLogger(WorkloadReceiver.class);
 
 
@@ -28,7 +29,7 @@ public class WorkloadReceiver {
     }
 
 
-    @JmsListener(destination = WORKLOAD_QUEUE)
+    @SqsListener(value = WORKLOAD_QUEUE, deletionPolicy = SqsMessageDeletionPolicy.ON_SUCCESS)
     public void receiveMessage(@Payload TrainerWorkloadRequestDTO requestDTO,
                                @Header(name = "txID") String txID) {
         validatePayload(txID, requestDTO);
